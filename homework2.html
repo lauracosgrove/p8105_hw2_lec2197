@@ -418,6 +418,35 @@ table(subway_data_tidy_ada$ada_any)</code></pre>
 </div>
 <div id="problem-2" class="section level2">
 <h2>Problem 2</h2>
+<p><em>Read and clean the Mr. Trash Wheel sheet:</em></p>
+<ul>
+<li><p><em>specify the sheet in the Excel file and to omit columns containing notes (using the range argument and cell_cols() function)</em></p></li>
+<li><p><em>use reasonable variable names</em></p></li>
+<li><p><em>omit rows that do not include dumpster-specific data</em></p></li>
+<li><p><em>rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)</em></p></li>
+</ul>
+<pre class="r"><code>mrtrash_data &lt;- readxl::read_excel(path = &quot;./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx&quot;,
+                                   sheet = 1, range = &quot;A2:N256&quot;) %&gt;%
+  janitor::clean_names() %&gt;% 
+  drop_na(dumpster) %&gt;% 
+  mutate(sports_balls = as.integer(round(sports_balls)))</code></pre>
+<p><em>Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful).</em></p>
+<pre class="r"><code>precip_data_2017 &lt;- readxl::read_excel(path = &quot;./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx&quot;,
+                                   sheet = 3, range = &quot;A2:B14&quot;) %&gt;% 
+  janitor::clean_names()
+
+precip_data_2016 &lt;- readxl::read_excel(path = &quot;./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx&quot;,
+                                   sheet = 4, range = &quot;A2:B14&quot;) %&gt;% 
+  janitor::clean_names() 
+
+precip_data &lt;- left_join(precip_data_2017, precip_data_2016, by = &quot;month&quot;) %&gt;% 
+  rename(&quot;2017&quot; = total.x, &quot;2016&quot; = total.y) %&gt;% 
+  gather(key = &quot;year&quot;, value = precipitation, &quot;2017&quot;,&quot;2016&quot;) %&gt;%
+  mutate(month = recode(month, !!!month.name)) %&gt;% 
+  filter(!is.na(precipitation))</code></pre>
+<p><em>Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?</em> ### Data Interpretation</p>
+<p>Total precipitation in 2017 is shown below for the months available in the dataset: 29.93 inches</p>
+<p>Median number of sports balls in a dumpster in 2016: 26</p>
 </div>
 
 

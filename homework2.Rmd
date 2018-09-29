@@ -186,11 +186,47 @@ table(subway_data_tidy_ada$ada_any)
 Seventeen out of 60 stations, or **28.3%**, of stations that serve the A train have an ADA-compliant entrance.
 
 ## Problem 2
+_Read and clean the Mr. Trash Wheel sheet:_
 
-```{r import data}
+* _specify the sheet in the Excel file and to omit columns containing notes (using the range argument and cell_cols() function)_
+
+* _use reasonable variable names_
+
+* _omit rows that do not include dumpster-specific data_
+
+* _rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using  as.integer)_
+
+
+```{r import trash data}
 mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
-                                 range = "A2:N256") %>% 
+                                   sheet = 1, range = "A2:N256") %>%
   janitor::clean_names() %>% 
-  drop_na(dumpster)
+  drop_na(dumpster) %>% 
+  mutate(sports_balls = as.integer(round(sports_balls)))
 ```
 
+_Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful)._
+
+```{r import precip data}
+precip_data_2017 <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
+                                   sheet = 3, range = "A2:B14") %>% 
+  janitor::clean_names()
+
+precip_data_2016 <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
+                                   sheet = 4, range = "A2:B14") %>% 
+  janitor::clean_names() 
+
+precip_data <- left_join(precip_data_2017, precip_data_2016, by = "month") %>% 
+  rename("2017" = total.x, "2016" = total.y) %>% 
+  gather(key = "year", value = precipitation, "2017","2016") %>%
+  mutate(month = recode(month, !!!month.name)) %>% 
+  filter(!is.na(precipitation))
+```
+
+_Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?_
+### Data Interpretation
+
+Total precipitation in 2017 is shown below for the months available in the dataset: `r precip_data %>% filter(year == 2017) %>% summarise(sum(precipitation))` inches
+
+Median number of sports balls in a dumpster in 2016: 
+`r mrtrash_data %>% filter(year == 2016) %>% summarise(median(sports_balls))`
