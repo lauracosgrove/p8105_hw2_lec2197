@@ -138,30 +138,31 @@ options(tibble.print_min = 5)</code></pre>
   select(line:entry, vending, starts_with(&quot;ada&quot;)) %&gt;% 
   mutate(entry = ifelse(entry == &quot;YES&quot;, TRUE, FALSE))</code></pre>
 <p><em>Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?</em></p>
-<p>I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the <code>ada_notes</code> variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the <code>entry</code> variable – i.e., whether the data refer to an entrance or an exit in that observation – to a logical vector.</p>
-<p>The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entry or exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns. The dimensions of the subway data are 1868, 20. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.</p>
+<p>I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the <code>ada_notes</code> variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the <code>entry</code> variable – i.e., whether there is entry allowed in that entrance/exit – to a logical vector.</p>
+<p>The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entrance/exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns. The dimensions of the subway data are 1868, 20. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.</p>
 <p>This data is not tidy; the columns route1 through route11 have variable information in their titles, i.e., the count of how many routes are served by that particular line.</p>
 <div id="count-of-distinct-stations" class="section level3">
 <h3>Count of distinct stations</h3>
 <p><em>Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.</em></p>
 <p>This count is complicated by two features of the MTA: redundant use of station names (e.g., 7th Ave in Midtown and 7th Ave in Park Slope), and the existence of station complexes (e.g., 42nd St Times Square or 14th St Union Square).</p>
-<pre class="r"><code>dim(line_count &lt;- subway_data %&gt;% 
+<pre class="r"><code>#First count by distinct station names x lines
+dim(line_count &lt;- subway_data %&gt;% 
   distinct(station_name, line))</code></pre>
 <pre><code>## [1] 465   2</code></pre>
 <pre class="r"><code># 465 observations
 
-# What if we compare with the geographic data?
+# What if we compare with counting by distinct geographic data?
 dim(geo_count &lt;- subway_data %&gt;% 
   distinct(station_latitude, station_longitude))</code></pre>
 <pre><code>## [1] 472   2</code></pre>
 <pre class="r"><code># 472 observations
 
-# What if we compare with the station name in combination with route1, as proxy for line?
+# What if we compare with counting by the station name in combination with route1, as proxy for line?
 dim(subway_data %&gt;% 
   distinct(station_name, route1))</code></pre>
 <pre><code>## [1] 450   2</code></pre>
 <pre class="r"><code># 450 observations</code></pre>
-<p>Using three different methods of counting, we get three different answers. For example, looking at the data, we find using route1 as a proxy for line likely gives an underestimation, because it looks like there’s some misattribution of routes to particular lines, as below:</p>
+<p>Using three different methods of counting, we get three different answers. First, looking at the data, we find using route1 as a proxy for line likely gives an underestimation, because it looks like there’s some misattribution of routes to particular lines, as below:</p>
 <pre class="r"><code>ex_route_mistake &lt;- filter(subway_data, station_name == &quot;14th St&quot;, route1 == &quot;F&quot;) %&gt;% 
     select(line, station_name, route1)
 knitr::kable(head(ex_route_mistake, 1))</code></pre>
@@ -321,14 +322,56 @@ anti_join(geo_count, line_count) %&gt;%
 </tbody>
 </table>
 <pre class="r"><code># 3 observations not in geo_count but present in line_count</code></pre>
-<p>Viewing the three observations in this second anti-join, I note that all of the station names are old or outdated versions of station names (e.g., “Pacific St” is the old name for Atlantic Avenue-Barclays Center). These are the same stations as the renamed stations at the same location, so the <code>distinct</code> operation for <code>geo_count</code> correctly threw out these observations when counting unique stations.</p>
-<p>In conclusion, after identifying these inaccuracies, the most accurate unique station count for this dataset would be the dimension of <code>line_count</code> minus 3, or the dimension of <code>geo_count</code> minus 10. These are both the same value: <strong>462</strong> unique stations.</p>
+<p>Viewing the three observations in this second anti-join, I note that “Pacific St” is the old name for Atlantic Avenue-Barclays Center. This is the same station as the renamed station at the same location, so the <code>distinct</code> operation for <code>geo_count</code> correctly threw out that observation when counting unique stations.</p>
+<p>The two Coney Island observations that were thrown out in <code>geo_count</code> are very interesting! The Stillwell Av and West 8th St stops in Coney Island are unusually tall stations that serve two lines - Coney Island and Brighton Beach lines. For each respective stop, there’s identical geographic data for the distinct lines. That this is only true for these stops might be a function of their being so tall: the platforms are stacked right on top of one another. I’m not quite sure whether this means that they are each functionally a single station, but I’m going to go with the principle of unique lines meaning unique stations at a given stop and decide that <code>geo_count</code> incorrectly threw out these observation when counting unique stations.</p>
+<p>In conclusion, after identifying these inaccuracies, the most accurate unique station count for this dataset would be the dimension of <code>line_count</code> minus 1, or the dimension of <code>geo_count</code> minus 10 and plus 2. These are both the same value: <strong>464</strong> unique stations.</p>
 </div>
 <div id="ada-compliant-station-counts" class="section level3">
 <h3>ADA compliant station counts</h3>
+<p>Now that we’ve gotten an accurate station count, we’re curious about how many of those stations are accessible by an ADA-compliant entrance/exit. (This picture will probably be dim.)</p>
+<p>We saw earlier that counting distinct stations by distinct <code>line</code> and <code>station_name</code> is an imperfect count due to the Pacific Av hiccup. My first step will be to simply modify that observation, given that it seems like an honest mistake in the data. After this step, we should be able to count distinct stations by <code>line</code> and <code>station_name</code> without worrying.</p>
+<pre class="r"><code>subway_data &lt;- subway_data %&gt;% 
+  mutate(
+    station_name = replace(station_name, station_name == &quot;Pacific St&quot;, &quot;Atlantic Av-Barclays Ctr&quot;)
+  )</code></pre>
+<p>Since we’re concerned with ADA accessibility by station rather than by entrance/exit, since many stations have an ADA compliant entrance in addition to non-ADA compliance entrances, and since we have no control over which value of the ADA variable our <code>distinct</code> operation will keep when throwing out observations, we will need to create an interim dataset with a column asking whether there is any ADA compliant entrance at that station.</p>
+<pre class="r"><code># First look at what the sum is over all observations for a reference, and figure out if there's any missing values
+sum(subway_data$ada, na.rm = TRUE)</code></pre>
+<pre><code>## [1] 468</code></pre>
+<pre class="r"><code>sum(subway_data$ada)</code></pre>
+<pre><code>## [1] 468</code></pre>
+<pre class="r"><code># There are no NAs in the ada variable, so we don't worry about it. 
+
+# Group by station name and line to add a new ada_any variable by unique station, then filter on distinct stations to get the number by unique stations.
+
+subway_data_ada &lt;- subway_data %&gt;% 
+  select(station_name, line, ada) %&gt;% 
+  group_by(station_name, line) %&gt;% 
+  mutate(ada_count = sum(ada)) %&gt;% 
+  mutate(ada_any = ifelse(ada_count &gt; 0, TRUE, FALSE)) %&gt;% 
+  distinct(line, station_name, .keep_all = TRUE)
+
+table(subway_data_ada$ada_any)</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+##   381    83</code></pre>
+<p>There are <strong>83</strong> stations that are ADA-accessible. That’s only 18%.</p>
 </div>
-<div id="proportion-of-station-entrances-exits-without-vending-that-allow-entrance" class="section level3">
-<h3>Proportion of station entrances / exits without vending that allow entrance</h3>
+<div id="no-vending-yes-entrance" class="section level3">
+<h3>No vending, yes entrance</h3>
+<p>Now, we’re interested in calculating the proportion of entry/exits with no vending that allow entrance. At first I thought the <code>vending</code> variable meant vending machines, probably because I was hungry, but then I remembered reading <a href="https://jalopnik.com/the-nyc-subway-metrocard-vending-machines-apparently-re-1827450266">this</a> story and realized it meant stations where you can buy a MetroCard.</p>
+<p>We won’t filter the data by unique stations this time, because either all or almost all stations have MTA vending machines. We’re interested in the worrying situation when you’ve already rushed down the stairs to catch a rapidly-departing train and suddenly realize you have to go find another entrance to fill your already-empty MetroCard, which you swear you just put $40 on. We love NYC!</p>
+<pre class="r"><code>subway_data_vending &lt;- subway_data %&gt;% 
+  select(entry, vending) %&gt;% 
+  mutate(vending = ifelse(vending == &quot;YES&quot;, TRUE, FALSE)) %&gt;% 
+  mutate(entry_novending = ifelse(entry == TRUE, 
+                                  ifelse(vending == FALSE, TRUE, FALSE),
+                                  FALSE))
+table(subway_data_vending$entry_novending)</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+##  1799    69</code></pre>
+<p>Only <strong>3.7%</strong> of entrances/exits have no vending machine. Good job, MTA.</p>
 </div>
 <div id="reformatting-route-data" class="section level3">
 <h3>Reformatting route data</h3>
@@ -338,20 +381,39 @@ anti_join(geo_count, line_count) %&gt;%
   filter(!is.na(route_name)) %&gt;% 
   separate(route_index, c(&quot;empty&quot;, &quot;route_index&quot;), &quot;route&quot;) %&gt;% 
   select(-empty)</code></pre>
-<pre class="r"><code>subway_data_tidy %&gt;% 
-  distinct(station_name, line, route_name)</code></pre>
-<pre><code>## # A tibble: 981 x 3
-##   line     station_name route_name
-##   &lt;chr&gt;    &lt;chr&gt;        &lt;chr&gt;     
-## 1 4 Avenue 25th St      R         
-## 2 4 Avenue 36th St      N         
-## 3 4 Avenue 45th St      R         
-## 4 4 Avenue 53rd St      R         
-## 5 4 Avenue 59th St      N         
-## # ... with 976 more rows</code></pre>
 </div>
-<div id="how-many-distinct-stations-serve-the-a-train" class="section level3">
-<h3>How many distinct stations serve the A train?</h3>
+<div id="distinct-stations-that-serve-the-a-train" class="section level3">
+<h3>Distinct stations that serve the A train</h3>
+<pre class="r"><code>subway_data_tidy %&gt;% 
+  distinct(station_name, line, .keep_all = TRUE) %&gt;% 
+  select(station_name, line, route_name) %&gt;% 
+  filter(route_name == &quot;A&quot;)</code></pre>
+<pre><code>## # A tibble: 60 x 3
+##   station_name                  line            route_name
+##   &lt;chr&gt;                         &lt;chr&gt;           &lt;chr&gt;     
+## 1 Times Square                  42nd St Shuttle A         
+## 2 125th St                      8 Avenue        A         
+## 3 145th St                      8 Avenue        A         
+## 4 14th St                       8 Avenue        A         
+## 5 168th St - Washington Heights 8 Avenue        A         
+## # ... with 55 more rows</code></pre>
+<p><strong>60</strong> stations serve the A train.</p>
+</div>
+<div id="ada-compliance-by-a-train" class="section level3">
+<h3>ADA compliance by A train</h3>
+<pre class="r"><code>subway_data_tidy_ada &lt;- subway_data_tidy %&gt;% 
+  select(station_name, line, route_name, ada) %&gt;% 
+  filter(route_name == &quot;A&quot;) %&gt;% 
+  group_by(station_name, line) %&gt;% 
+  mutate(ada_count = sum(ada)) %&gt;% 
+  mutate(ada_any = ifelse(ada_count &gt; 0, TRUE, FALSE)) %&gt;% 
+  distinct(line, station_name, .keep_all = TRUE)
+
+table(subway_data_tidy_ada$ada_any)</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+##    43    17</code></pre>
+<p>Seventeen out of 60 stations, or <strong>28.3%</strong>, of stations that serve the A train have an ADA-compliant entrance.</p>
 </div>
 </div>
 <div id="problem-2" class="section level2">

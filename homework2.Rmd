@@ -22,9 +22,9 @@ subway_data <- read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data
 
 _Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?_
 
-I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the `ada_notes` variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the `entry` variable -- i.e., whether the data refer to an entrance or an exit in that observation -- to a logical vector.
+I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the `ada_notes` variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the `entry` variable -- i.e., whether there is entry allowed in that entrance/exit -- to a logical vector.
 
-The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entry or exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns.  The dimensions of the subway data are `r dim(subway_data)`. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.
+The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entrance/exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns.  The dimensions of the subway data are `r dim(subway_data)`. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.
 
 This data is not tidy; the columns route1 through route11 have variable information in their titles, i.e., the count of how many routes are served by that particular line. 
 
@@ -35,25 +35,26 @@ _Note that stations are identified both by name and by line (e.g. 125th St A/B/C
 
 This count is complicated by two features of the MTA: redundant use of station names (e.g., 7th Ave in Midtown and 7th Ave in Park Slope), and the existence of station complexes (e.g., 42nd St Times Square or 14th St Union Square).
 
-```{r distinct stations}
+```{r distinct stations count}
+#First count by distinct station names x lines
 dim(line_count <- subway_data %>% 
   distinct(station_name, line))
 # 465 observations
 
-# What if we compare with the geographic data?
+# What if we compare with counting by distinct geographic data?
 dim(geo_count <- subway_data %>% 
   distinct(station_latitude, station_longitude))
 # 472 observations
 
-# What if we compare with the station name in combination with route1, as proxy for line?
+# What if we compare with counting by the station name in combination with route1, as proxy for line?
 dim(subway_data %>% 
   distinct(station_name, route1))
 # 450 observations
 ```
 
-Using three different methods of counting, we get three different answers. For example, looking at the data, we find using route1 as a proxy for line likely gives an underestimation, because it looks like there's some misattribution of routes to particular lines, as below:
+Using three different methods of counting, we get three different answers. First, looking at the data, we find using route1 as a proxy for line likely gives an underestimation, because it looks like there's some misattribution of routes to particular lines, as below:
 
-```{r distinct stations part deux}
+```{r distinct stations explore bad route data}
 ex_route_mistake <- filter(subway_data, station_name == "14th St", route1 == "F") %>% 
     select(line, station_name, route1)
 knitr::kable(head(ex_route_mistake, 1))
@@ -88,16 +89,66 @@ anti_join(line_count, geo_count) %>%
 # 3 observations not in geo_count but present in line_count
 ```
 
-Viewing the three observations in this second anti-join, I note that all of the station names are old or outdated versions of station names (e.g., "Pacific St" is the old name for Atlantic Avenue-Barclays Center). These are the same stations as the renamed stations at the same location, so the `distinct` operation for `geo_count` correctly threw out these observations when counting unique stations.
+Viewing the three observations in this second anti-join, I note that "Pacific St" is the old name for Atlantic Avenue-Barclays Center. This is the same station as the renamed station at the same location, so the `distinct` operation for `geo_count` correctly threw out that observation when counting unique stations.
 
-In conclusion, after identifying these inaccuracies, the most accurate unique station count for this dataset would be the dimension of `line_count` minus 3, or the dimension of `geo_count` minus 10. These are both the same value: **462** unique stations.
+The two Coney Island observations that were thrown out in `geo_count` are very interesting! The Stillwell Av and West 8th St stops in Coney Island are unusually tall stations that serve two lines - Coney Island and Brighton Beach lines. For each respective stop, there's identical geographic data for the distinct lines. That this is only true for these stops might be a function of their being so tall: the platforms are stacked right on top of one another. I'm not quite sure whether this means that they are each functionally a single station, but I'm going to go with the principle of unique lines meaning unique stations at a given stop and decide that `geo_count` incorrectly threw out these observation when counting unique stations.
+
+In conclusion, after identifying these inaccuracies, the most accurate unique station count for this dataset would be the dimension of `line_count` minus 1, or the dimension of `geo_count` minus 10 and plus 2. These are both the same value: **464** unique stations.
 
 ### ADA compliant station counts
 
+Now that we've gotten an accurate station count, we're curious about how many of those stations are accessible by an ADA-compliant entrance/exit. (This picture will probably be dim.)
 
-### Proportion of station entrances / exits without vending that allow entrance
+We saw earlier that counting distinct stations by distinct `line` and `station_name` is an imperfect count due to the Pacific Av hiccup. My first step will be to simply modify that observation, given that it seems like an honest mistake in the data. After this step, we should be able to count distinct stations by `line` and `station_name` without worrying.
 
+```{r Pacific Ave mod}
+subway_data <- subway_data %>% 
+  mutate(
+    station_name = replace(station_name, station_name == "Pacific St", "Atlantic Av-Barclays Ctr")
+  )
+```
 
+Since we're concerned with ADA accessibility by station rather than by entrance/exit, since many stations have an ADA compliant entrance in addition to non-ADA compliance entrances, and since we have no control over which value of the ADA variable our `distinct` operation will keep when throwing out observations, we will need to create an interim dataset with a column asking whether there is any ADA compliant entrance at that station.
+
+```{r ADA compliance}
+# First look at what the sum is over all observations for a reference, and figure out if there's any missing values
+sum(subway_data$ada, na.rm = TRUE)
+sum(subway_data$ada)
+
+# There are no NAs in the ada variable, so we don't worry about it. 
+
+# Group by station name and line to add a new ada_any variable by unique station, then filter on distinct stations to get the number by unique stations.
+
+subway_data_ada <- subway_data %>% 
+  select(station_name, line, ada) %>% 
+  group_by(station_name, line) %>% 
+  mutate(ada_count = sum(ada)) %>% 
+  mutate(ada_any = ifelse(ada_count > 0, TRUE, FALSE)) %>% 
+  distinct(line, station_name, .keep_all = TRUE)
+
+table(subway_data_ada$ada_any)
+
+```
+
+There are **83** stations that are ADA-accessible. That's only 18%.
+
+### No vending, yes entrance
+
+Now, we're interested in calculating the proportion of entry/exits with no vending that allow entrance. At first I thought the `vending` variable meant vending machines, probably because I was hungry, but then I remembered reading [this](https://jalopnik.com/the-nyc-subway-metrocard-vending-machines-apparently-re-1827450266) story and realized it meant stations where you can buy a MetroCard.
+
+We won't filter the data by unique stations this time, because either all or almost all stations have MTA vending machines. We're interested in the worrying situation when you've already rushed down the stairs to catch a rapidly-departing train and suddenly realize you have to go find another entrance to fill your already-empty MetroCard, which you swear you just put $40 on. We love NYC!
+
+```{r no vending, yes entrance}
+subway_data_vending <- subway_data %>% 
+  select(entry, vending) %>% 
+  mutate(vending = ifelse(vending == "YES", TRUE, FALSE)) %>% 
+  mutate(entry_novending = ifelse(entry == TRUE, 
+                                  ifelse(vending == FALSE, TRUE, FALSE),
+                                  FALSE))
+table(subway_data_vending$entry_novending)
+```
+
+Only **3.7%** of entrances/exits have no vending machine. Good job, MTA.
 
 ### Reformatting route data 
 
@@ -110,14 +161,29 @@ subway_data_tidy <- subway_data %>%
   separate(route_index, c("empty", "route_index"), "route") %>% 
   select(-empty)
 ```
-
+### Distinct stations that serve the A train
 ```{r distinct routes tidy}
 subway_data_tidy %>% 
-  distinct(station_name, line, route_name)
+  distinct(station_name, line, .keep_all = TRUE) %>% 
+  select(station_name, line, route_name) %>% 
+  filter(route_name == "A")
+```
+**60** stations serve the A train.
+
+### ADA compliance by A train
+```{r ada by a train}
+subway_data_tidy_ada <- subway_data_tidy %>% 
+  select(station_name, line, route_name, ada) %>% 
+  filter(route_name == "A") %>% 
+  group_by(station_name, line) %>% 
+  mutate(ada_count = sum(ada)) %>% 
+  mutate(ada_any = ifelse(ada_count > 0, TRUE, FALSE)) %>% 
+  distinct(line, station_name, .keep_all = TRUE)
+
+table(subway_data_tidy_ada$ada_any)
 ```
 
-### How many distinct stations serve the A train?
-
+Seventeen out of 60 stations, or **28.3%**, of stations that serve the A train have an ADA-compliant entrance.
 
 ## Problem 2
 
