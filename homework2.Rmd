@@ -187,7 +187,10 @@ Seventeen out of 60 stations, or **28.3%**, of stations that serve the A train h
 
 ## Problem 2
 
-
-```{r }
+```{r import data}
+mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
+                                 range = "A2:N256") %>% 
+  janitor::clean_names() %>% 
+  drop_na(dumpster)
 ```
 
