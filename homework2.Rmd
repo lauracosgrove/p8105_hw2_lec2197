@@ -1,5 +1,5 @@
 ---
-title: "Homework2"
+title: "Homework 2"
 author: "Laura Cosgrove"
 date: "9/29/2018"
 output: html_document
@@ -11,7 +11,7 @@ options(tibble.print_min = 5)
 ```
 
 ## Problem 1
-_retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance._
+_Import data. Retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance._
 
 ```{r import data, message = FALSE}
 subway_data <- read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
@@ -22,17 +22,84 @@ subway_data <- read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data
 
 _Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?_
 
-I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the ada_notes variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the `entry` variable -- i.e., whether the data refer to an entrance or an exit in that observation -- to a logical vector.
+I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the `ada_notes` variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the `entry` variable -- i.e., whether the data refer to an entrance or an exit in that observation -- to a logical vector.
 
 The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entry or exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns.  The dimensions of the subway data are `r dim(subway_data)`. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.
 
 This data is not tidy; the columns route1 through route11 have variable information in their titles, i.e., the count of how many routes are served by that particular line. 
 
 
-_How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here._
-_How many stations are ADA compliant?_
-_What proportion of station entrances / exits without vending allow entrance?_
+### Count of distinct stations
 
+_Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here._
+
+This count is complicated by two features of the MTA: redundant use of station names (e.g., 7th Ave in Midtown and 7th Ave in Park Slope), and the existence of station complexes (e.g., 42nd St Times Square or 14th St Union Square).
+
+```{r distinct stations}
+dim(line_count <- subway_data %>% 
+  distinct(station_name, line))
+# 465 observations
+
+# What if we compare with the geographic data?
+dim(geo_count <- subway_data %>% 
+  distinct(station_latitude, station_longitude))
+# 472 observations
+
+# What if we compare with the station name in combination with route1, as proxy for line?
+dim(subway_data %>% 
+  distinct(station_name, route1))
+# 450 observations
+```
+
+Using three different methods of counting, we get three different answers. For example, looking at the data, we find using route1 as a proxy for line likely gives an underestimation, because it looks like there's some misattribution of routes to particular lines, as below:
+
+```{r distinct stations part deux}
+ex_route_mistake <- filter(subway_data, station_name == "14th St", route1 == "F") %>% 
+    select(line, station_name, route1)
+knitr::kable(head(ex_route_mistake, 1))
+knitr::kable(tail(ex_route_mistake, 1))
+```
+
+Checking the wikipedia entry for the [14th st/ 6th ave station complex](https://en.wikipedia.org/wiki/14th_Street/Sixth_Avenue_(New_York_City_Subway)) shows us that the F shouldn't be a route associated with the Broadway-7th Ave line. So, we can tentatively discard that estimation.
+
+To understand which of the two remaining counts to trust, let's use some anti-joins on our tibbles created by filtering by distinct observations.
+
+```{r distinct stations first anti join}
+line_count <- subway_data %>% 
+  distinct(station_name, line, .keep_all = TRUE)
+# 465 observations
+
+geo_count <- subway_data %>% 
+  distinct(station_latitude, station_longitude, .keep_all = TRUE)
+# 472 observations
+
+anti_join(geo_count, line_count) %>% 
+  select(line:station_longitude) %>% 
+  knitr::kable()
+# 10 observations not in line_count, or counting by distinct name x line, but present in geo_count, or counting by distinct geographical coordinates.
+```
+
+Viewing this anti-join, I note that there are some stations with distinct geographical coordinates that are identical stations. This is likely because the data are row-listed by entrance and exit observations. This means that if a station is large enough, there would be different geographical coordinates for the same station. So, the `distinct` operation for `line_count` correctly threw out these observations when counting unique stations. 
+
+```{r distinct stations second anti join}
+anti_join(line_count, geo_count) %>% 
+  select(line:station_longitude) %>% 
+  knitr::kable()
+# 3 observations not in geo_count but present in line_count
+```
+
+Viewing the three observations in this second anti-join, I note that all of the station names are old or outdated versions of station names (e.g., "Pacific St" is the old name for Atlantic Avenue-Barclays Center). These are the same stations as the renamed stations at the same location, so the `distinct` operation for `geo_count` correctly threw out these observations when counting unique stations.
+
+In conclusion, after identifying these inaccuracies, the most accurate unique station count for this dataset would be the dimension of `line_count` minus 3, or the dimension of `geo_count` minus 10. These are both the same value: **462** unique stations.
+
+### ADA compliant station counts
+
+
+### Proportion of station entrances / exits without vending that allow entrance
+
+
+
+### Reformatting route data 
 
 To make this dataset tidy, we reformat data so that route number and route name are distinct variables. 
 
@@ -44,7 +111,12 @@ subway_data_tidy <- subway_data %>%
   select(-empty)
 ```
 
-_How many distinct stations serve the A train?_
+```{r distinct routes tidy}
+subway_data_tidy %>% 
+  distinct(station_name, line, route_name)
+```
+
+### How many distinct stations serve the A train?
 
 
 ## Problem 2
