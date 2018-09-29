@@ -1,0 +1,55 @@
+---
+title: "Homework2"
+author: "Laura Cosgrove"
+date: "9/29/2018"
+output: html_document
+---
+
+```{r setup, message = FALSE}
+library(tidyverse)
+options(tibble.print_min = 5)
+```
+
+## Problem 1
+_retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance._
+
+```{r import data, message = FALSE}
+subway_data <- read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
+  janitor::clean_names() %>% 
+  select(line:entry, vending, starts_with("ada")) %>% 
+  mutate(entry = ifelse(entry == "YES", TRUE, FALSE))
+```
+
+_Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?_
+
+I imported data, cleaned up the names, and selected some specific variables of interest: line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. I kept the ada_notes variable, as from a quick viewing it looks to contain some important information for some entrances/exits. I also recoded the character vector indicating the status of the `entry` variable -- i.e., whether the data refer to an entrance or an exit in that observation -- to a logical vector.
+
+The dataset describes the entry and exit data for the NYC subway; it has at minimum one row per entry or exit. For each row, the dataset contains identifier information for the particular station the entry or exit gives access to: its name, and geographic location data (latitude, longitude). It also gives information about the particular line and route(s) a rider will find at the station the entry or exit gives access to: the line column in combination with the route1 through route11 columns.  The dimensions of the subway data are `r dim(subway_data)`. Eleven columns, so far, are dedicated to reserving space for presence of up to 11 routes for a particular entry or exit.
+
+This data is not tidy; the columns route1 through route11 have variable information in their titles, i.e., the count of how many routes are served by that particular line. 
+
+
+_How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here._
+_How many stations are ADA compliant?_
+_What proportion of station entrances / exits without vending allow entrance?_
+
+
+To make this dataset tidy, we reformat data so that route number and route name are distinct variables. 
+
+```{r gather on route}
+subway_data_tidy <- subway_data %>% 
+  gather(key = "route_index", value = "route_name", starts_with("route")) %>% 
+  filter(!is.na(route_name)) %>% 
+  separate(route_index, c("empty", "route_index"), "route") %>% 
+  select(-empty)
+```
+
+_How many distinct stations serve the A train?_
+
+
+## Problem 2
+
+
+```{r }
+```
+
