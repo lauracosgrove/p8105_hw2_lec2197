@@ -224,9 +224,90 @@ precip_data <- left_join(precip_data_2017, precip_data_2016, by = "month") %>%
 ```
 
 _Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?_
+
 ### Data Interpretation
+
+Number of observations FINISH
+
+some key variables FINISH
 
 Total precipitation in 2017 is shown below for the months available in the dataset: `r precip_data %>% filter(year == 2017) %>% summarise(sum(precipitation))` inches
 
 Median number of sports balls in a dumpster in 2016: 
-`r mrtrash_data %>% filter(year == 2016) %>% summarise(median(sports_balls))`
+`r mrtrash_data %>% filter(year == 2016) %>% summarise(median(sports_balls))` balls.
+
+## Problem 3
+
+For this question:
+
+* format the data to use appropriate variable names;
+* focus on the “Overall Health” topic
+* exclude variables for class, topic, question, sample size, and everything from lower confidence limit to GeoLocation
+* structure data so that responses (excellent to poor) are variables taking the value of Data_value
+* create a new variable showing the proportion of responses that were “Excellent” or “Very Good""
+
+```{r import and clean brfss data}
+library(p8105.datasets)
+data(brfss_smart2010)
+
+brfss_smart2010 <- brfss_smart2010 %>% 
+  janitor::clean_names() %>% 
+  rename(state = locationabbr, state_and_county = locationdesc) %>% 
+  filter(topic == "Overall Health") %>% 
+  select(year:state_and_county, response, data_value) %>% 
+  spread(key = response, value = data_value) %>% 
+  janitor::clean_names() %>% 
+  mutate(excellent_or_very_good = excellent + very_good)
+```
+
+_How many unique locations are included in the dataset? Is every state represented? What state is observed the most?_
+```{r unique locations}
+dim(brfss_smart2010 %>% 
+  distinct(state_and_county))
+#404 unique locations
+
+dim(brfss_smart2010 %>% 
+  distinct(state))
+#50 unique states (plus the District of Columbia)
+
+# Quick view of what state is observed the most
+brfss_smart2010 %>% 
+  arrange(state) %>% 
+  ggplot(., aes(x = state)) +
+    geom_bar() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# It's New Jersey.
+```
+
+404 unique locations are represented in the dataset -- these are, roughly, counties, though dependent on the state there are some municipalities, parishes, and other similar mid-sized geographic categories. All 50 states and the District of Columbia are represented. New Jersey is represented most prominently, which means that from 2002-2009, the counties reporting these data in New Jersey were high in number, consistent, or a combination of the two in comparison to other states.
+
+_In 2002, what is the median of the “Excellent” response value?_
+
+```{r median}
+brfss_smart2010 %>% 
+  filter(year == 2002) %>% 
+  summarise(N = length(excellent),
+            count_NA = sum(is.na(excellent)),
+            median = median(excellent, na.rm = TRUE)
+            ) %>% 
+  knitr::kable()
+```
+
+The median of the "Excellent" response variable in 2002 is *23.6*.
+
+
+_Make a histogram of “Excellent” response values in the year 2002._
+
+```{r 2002 excellent histogram}
+brfss_smart2010 %>% 
+  filter(year == 2002) %>% 
+  ggplot(aes(x = excellent)) +
+        geom_histogram()
+```
+
+_Make a scatterplot showing the proportion of “Excellent” response values in New York County and Queens County (both in NY State) in each year from 2002 to 2010._
+
+```{r scatter proportion excellent }
+
+```
+
