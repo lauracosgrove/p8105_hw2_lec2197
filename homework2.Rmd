@@ -293,7 +293,7 @@ brfss_smart2010 %>%
   knitr::kable()
 ```
 
-The median of the "Excellent" response variable in 2002 is *23.6*.
+The median of the "Excellent" response variable in 2002 is **23.6**.
 
 
 _Make a histogram of “Excellent” response values in the year 2002._
@@ -308,6 +308,9 @@ brfss_smart2010 %>%
 _Make a scatterplot showing the proportion of “Excellent” response values in New York County and Queens County (both in NY State) in each year from 2002 to 2010._
 
 ```{r scatter proportion excellent }
-
+brfss_smart2010 %>% 
+  filter(state_and_county == "NY - New York County" | state_and_county == "NY - Queens County") %>%
+  ggplot(aes(x = year, y = excellent, color = state_and_county)) +
+           geom_point()
 ```
 
