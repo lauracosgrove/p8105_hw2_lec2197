@@ -134,7 +134,7 @@ There are **83** stations that are ADA-accessible. That's only 18%.
 
 ### No vending, yes entrance
 
-Now, we're interested in calculating the proportion of entry/exits with no vending that allow entrance. At first I thought the `vending` variable meant vending machines, probably because I was hungry, but then I remembered reading [this](https://jalopnik.com/the-nyc-subway-metrocard-vending-machines-apparently-re-1827450266) story and realized it meant stations where you can buy a MetroCard.
+Now, we're interested in calculating the proportion of entry/exits with no vending that allow entrance. At first I thought the `vending` variable meant vending machines for food, probably because I was hungry, but then I remembered reading [this](https://jalopnik.com/the-nyc-subway-metrocard-vending-machines-apparently-re-1827450266) story and realized it meant stations where you can buy a MetroCard.
 
 We won't filter the data by unique stations this time, because either all or almost all stations have MTA vending machines. We're interested in the worrying situation when you've already rushed down the stairs to catch a rapidly-departing train and suddenly realize you have to go find another entrance to fill your already-empty MetroCard, which you swear you just put $40 on. We love NYC!
 
@@ -201,6 +201,7 @@ _Read and clean the Mr. Trash Wheel sheet:_
 mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
                                    sheet = 1, range = "A2:N256") %>%
   janitor::clean_names() %>% 
+  rename(weight = weight_tons, volume = volume_cubic_yards) %>% 
   drop_na(dumpster) %>% 
   mutate(sports_balls = as.integer(round(sports_balls)))
 ```
@@ -227,14 +228,13 @@ _Write a paragraph about these data; you are encouraged to use inline R. Be sure
 
 ### Data Interpretation
 
-Number of observations FINISH
+The Mr. Trash dataset contains data about `r nrow(mrtrash_data)` dumpsters, the dates they were surveyed, and their contents. Each dumpster surveyed collected, on average, about `r as.integer(mean(mrtrash_data$cigarette_butts))` cigarette butts, `r as.integer(mean(mrtrash_data$plastic_bottles))` plastic bottles, `r as.integer(mean(mrtrash_data$chip_bags))` (empty) bags of chips, and `r as.integer(median(mrtrash_data$sports_balls))` lost sports balls! The median number of sports balls in a dumpster in 2016 was
+`r mrtrash_data %>% filter(year == 2016) %>% summarise(median(sports_balls))` balls -- a tough year for the athletes of Baltimore.
 
-some key variables FINISH
+The precipitation dataset contains data about the precipitation in Baltimore over the years 2016 and 2017 (up to August 2017); `r nrow(precip_data)` months' worth of data is represented. The mean value of inches of precipitation from January - August in 2017 was `r precip_data %>% filter(year == "2017") %>% summarize(mean(precipitation))`, and for the whole of 2016 was `r precip_data %>% filter(year == "2016") %>% summarize(mean(precipitation))`.
 
-Total precipitation in 2017 is shown below for the months available in the dataset: `r precip_data %>% filter(year == 2017) %>% summarise(sum(precipitation))` inches
+The total precipitation in 2017, for the months available in the dataset, was `r precip_data %>% filter(year == 2017) %>% summarise(sum(precipitation))` inches.
 
-Median number of sports balls in a dumpster in 2016: 
-`r mrtrash_data %>% filter(year == 2016) %>% summarise(median(sports_balls))` balls.
 
 ## Problem 3
 
