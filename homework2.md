@@ -180,16 +180,17 @@ sum(subway_data$ada)
 ``` r
 # There are no NAs in the ada variable, so we don't worry about it. 
 
-# Group by station name and line to add a new ada_any variable by unique station, then filter on distinct stations to get the number by unique stations.
+# Group by station name and line to add a new ada_any variable by unique station, then make a new dataframe filtering on distinct stations to get the number by unique stations.
 
-subway_data_ada <- subway_data %>% 
-  select(station_name, line, ada) %>% 
+subway_data <- subway_data %>% 
   group_by(station_name, line) %>% 
   mutate(ada_count = sum(ada)) %>% 
-  mutate(ada_any = ifelse(ada_count > 0, TRUE, FALSE)) %>% 
+  mutate(ada_any = ifelse(ada_count > 0, TRUE, FALSE))
+
+subway_data_by_station <- subway_data %>% 
   distinct(line, station_name, .keep_all = TRUE)
 
-table(subway_data_ada$ada_any)
+table(subway_data_by_station$ada_any)
 ```
 
     ## 
@@ -205,27 +206,29 @@ Now, we're interested in calculating the proportion of entry/exits with no vendi
 We won't filter the data by unique stations this time, because either all or almost all stations have MTA vending machines. We're interested in the worrying situation when you've already rushed down the stairs to catch a rapidly-departing train and suddenly realize you have to go find another entrance to fill your already-empty MetroCard, which you swear you just put $40 on. We love NYC!
 
 ``` r
-subway_data_vending <- subway_data %>% 
-  select(entry, vending) %>% 
+subway_data <- subway_data %>% 
   mutate(vending = ifelse(vending == "YES", TRUE, FALSE)) %>% 
   mutate(entry_novending = ifelse(entry == TRUE, 
                                   ifelse(vending == FALSE, TRUE, FALSE),
-                                  FALSE))
-table(subway_data_vending$entry_novending)
+                                  FALSE)
+         )
+table(subway_data$entry_novending)
 ```
 
     ## 
     ## FALSE  TRUE 
     ##  1799    69
 
-Only **3.7%** of entrances/exits have no vending machine. Good job, MTA.
+Only 69 entrance/exits, or **3.8%**, have no vending. Good job, MTA.
 
 ### Reformatting route data
 
 To make this dataset tidy, we reformat data so that route number and route name are distinct variables.
 
 ``` r
-subway_data_tidy <- subway_data %>% 
+#Create route index to preserve the order in which routes were originally listed
+
+subway_data <- subway_data %>% 
   gather(key = "route_index", value = "route_name", starts_with("route")) %>% 
   filter(!is.na(route_name)) %>% 
   separate(route_index, c("empty", "route_index"), "route") %>% 
@@ -235,28 +238,21 @@ subway_data_tidy <- subway_data %>%
 ### Distinct stations that serve the A train
 
 ``` r
-subway_data_tidy %>% 
+dim(subway_data %>% 
   distinct(station_name, line, .keep_all = TRUE) %>% 
   select(station_name, line, route_name) %>% 
   filter(route_name == "A")
+  )
 ```
 
-    ## # A tibble: 60 x 3
-    ##   station_name                  line            route_name
-    ##   <chr>                         <chr>           <chr>     
-    ## 1 Times Square                  42nd St Shuttle A         
-    ## 2 125th St                      8 Avenue        A         
-    ## 3 145th St                      8 Avenue        A         
-    ## 4 14th St                       8 Avenue        A         
-    ## 5 168th St - Washington Heights 8 Avenue        A         
-    ## # ... with 55 more rows
+    ## [1] 60  3
 
 **60** stations serve the A train.
 
 ### ADA compliance by A train
 
 ``` r
-subway_data_tidy_ada <- subway_data_tidy %>% 
+subway_data <- subway_data %>% 
   select(station_name, line, route_name, ada) %>% 
   filter(route_name == "A") %>% 
   group_by(station_name, line) %>% 
@@ -264,7 +260,7 @@ subway_data_tidy_ada <- subway_data_tidy %>%
   mutate(ada_any = ifelse(ada_count > 0, TRUE, FALSE)) %>% 
   distinct(line, station_name, .keep_all = TRUE)
 
-table(subway_data_tidy_ada$ada_any)
+table(subway_data$ada_any)
 ```
 
     ## 
@@ -317,22 +313,26 @@ precip_data <- left_join(precip_data_2017, precip_data_2016, by = "month") %>%
 
 ### Data Interpretation
 
-The Mr. Trash dataset contains data about 215 dumpsters, the dates they were surveyed, and their contents. Each dumpster surveyed collected, on average, about 44500 cigarette butts, 2156 plastic bottles, 2104 (empty) bags of chips, and 13 lost sports balls! The median number of sports balls in a dumpster in 2016 was 26 balls -- a tough year for the athletes of Baltimore.
+The Mr. Trash dataset contains data about 215 dumpsters, the dates they were surveyed, and their contents. Each dumpster surveyed collected, taking the meadian as average, about 34000 cigarette butts, 2240 plastic bottles, 2140 (empty) bags of chips, and 13 lost sports balls! The median number of sports balls in a dumpster in 2016 was 26 balls -- a tough year for the athletes of Baltimore.
 
-The precipitation dataset contains data about the precipitation in Baltimore over the years 2016 and 2017 (up to August 2017); 20 months' worth of data is represented. The mean value of inches of precipitation from January - August in 2017 was 3.74125, and for the whole of 2016 was 3.3291667.
+The precipitation dataset contains data about the precipitation in Baltimore over the years 2016 and 2017 (up to August 2017); 20 months' worth of data is represented. The mean value of inches of precipitation from January - August in 2017 was 3.74 inches, and for the whole of 2016 was 3.33 inches.
 
 The total precipitation in 2017, for the months available in the dataset, was 29.93 inches.
 
 Problem 3
 ---------
 
-For this question:
+*For this question:*
 
--   format the data to use appropriate variable names;
--   focus on the “Overall Health” topic
--   exclude variables for class, topic, question, sample size, and everything from lower confidence limit to GeoLocation
--   structure data so that responses (excellent to poor) are variables taking the value of Data\_value
--   create a new variable showing the proportion of responses that were “Excellent” or “Very Good""
+*\* format the data to use appropriate variable names;*
+
+*\* focus on the “Overall Health” topic*
+
+*\* exclude variables for class, topic, question, sample size, and everything from lower confidence limit to GeoLocation*
+
+*\* structure data so that responses (excellent to poor) are variables taking the value of Data\_value*
+
+*\* create a new variable showing the proportion of responses that were “Excellent” or “Very Good"*
 
 ``` r
 library(p8105.datasets)
@@ -406,13 +406,18 @@ The median of the "Excellent" response variable in 2002 is **23.6**.
 *Make a histogram of “Excellent” response values in the year 2002.*
 
 ``` r
+library(ggthemes)
 brfss_smart2010 %>% 
   filter(year == 2002) %>% 
   ggplot(aes(x = excellent)) +
-        geom_histogram()
+        geom_histogram() +
+        labs(
+          title = "Histogram of 'Excellent' Responses, 2002",
+          x = "Proportion of 'Excellent' Responses for One Location",
+          y = "Number of Responses for Given Proportion"
+        ) + 
+        theme_bw()
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
     ## Warning: Removed 2 rows containing non-finite values (stat_bin).
 
@@ -424,7 +429,16 @@ brfss_smart2010 %>%
 brfss_smart2010 %>% 
   filter(state_and_county == "NY - New York County" | state_and_county == "NY - Queens County") %>%
   ggplot(aes(x = year, y = excellent, color = state_and_county)) +
-           geom_point()
+          geom_point() + 
+          geom_smooth(se = FALSE) +
+          labs(
+            title = "Queens and New York County Performance, Overall Health",
+            x = "Year",
+            y = "Proportion of 'Excellent' Responses"
+          ) + 
+          theme_bw()
 ```
+
+    ## `geom_smooth()` using method = 'loess' and formula 'y ~ x'
 
 ![](homework2_files/figure-markdown_github/scatter%20proportion%20excellent-1.png)
