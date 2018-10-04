@@ -283,8 +283,8 @@ Problem 2
 -   *rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)*
 
 ``` r
-mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
-                                   sheet = 1, range = "A2:N256") %>%
+mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx",
+                                   sheet = 1, range = "A2:N336") %>%
   janitor::clean_names() %>% 
   rename(weight = weight_tons, volume = volume_cubic_yards) %>% 
   drop_na(dumpster) %>% 
@@ -295,11 +295,11 @@ mrtrash_data <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2
 
 ``` r
 precip_data_2017 <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
-                                   sheet = 3, range = "A2:B14") %>% 
+                                   sheet = 4, range = "A2:B14") %>% 
   janitor::clean_names()
 
 precip_data_2016 <- readxl::read_excel(path = "./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
-                                   sheet = 4, range = "A2:B14") %>% 
+                                   sheet = 5, range = "A2:B14") %>% 
   janitor::clean_names() 
 
 precip_data <- left_join(precip_data_2017, precip_data_2016, by = "month") %>% 
@@ -313,11 +313,11 @@ precip_data <- left_join(precip_data_2017, precip_data_2016, by = "month") %>%
 
 ### Data Interpretation
 
-The Mr. Trash dataset contains data about 215 dumpsters, the dates they were surveyed, and their contents. Each dumpster surveyed collected, taking the meadian as average, about 34000 cigarette butts, 2240 plastic bottles, 2140 (empty) bags of chips, and 13 lost sports balls! The median number of sports balls in a dumpster in 2016 was 26 balls -- a tough year for the athletes of Baltimore.
+The Mr. Trash dataset contains data about 285 dumpsters, the dates they were surveyed, and their contents. Each dumpster surveyed collected, taking the median as average, about 26000 cigarette butts, 1930 plastic bottles, 1840 (empty) bags of chips, and 8 lost sports balls! The median number of sports balls in a dumpster in 2016 was 26 balls -- a tough year for the athletes of Baltimore.
 
-The precipitation dataset contains data about the precipitation in Baltimore over the years 2016 and 2017 (up to August 2017); 20 months' worth of data is represented. The mean value of inches of precipitation from January - August in 2017 was 3.74 inches, and for the whole of 2016 was 3.33 inches.
+The precipitation dataset contains data about the precipitation in Baltimore over the years 2016 and 2017; 24 months' worth of data is represented. The mean value of inches of precipitation in 2017 was 3.33 inches, and for 2016 was 3.6 inches.
 
-The total precipitation in 2017, for the months available in the dataset, was 29.93 inches.
+The total precipitation in 2017 was 39.95 inches.
 
 Problem 3
 ---------
